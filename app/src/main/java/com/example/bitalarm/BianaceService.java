@@ -34,18 +34,24 @@ public class BianaceService extends Service {
 
     @Override
     public void onDestroy() {
-        Logger.d("asdasdqwdqwd");
+        socket.close();
         super.onDestroy();
     }
 
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
-
+        notificationManager = NotificationManagerCompat.from(this);
         priceLimit = intent.getStringExtra("priceLimit");
         selectItem = intent.getStringExtra("selectItem");
 
+        Notification notification = new NotificationCompat.Builder(this, App.CHANNEL_2_ID).setSmallIcon(R.drawable.ic_one).setContentTitle("Foreground Start")
+                .setContentText("Foregroud Start").setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_MESSAGE).build();
+        notificationManager.notify(1, notification);
+
+        notiCount++;
+
+        startForeground(2,notification);
         URI uri;
-        String input = intent.getStringExtra("inputExtra");
         try{
             String websocketEndPointUrl = "wss://stream.binance.com:9443/ws/btcbusd@kline_15m";
             Logger.d("WSURL"+websocketEndPointUrl);
@@ -59,10 +65,10 @@ public class BianaceService extends Service {
                 }
 
                 @Override
-                public void onMessage(String message) {
+                public synchronized void onMessage(String message) {
+
                     try{
                         JSONObject jsonObject = new JSONObject(message);
-
                         JSONObject jsonObject1 = new JSONObject(jsonObject.getString("k"));
                         String pricedata = jsonObject1.getString("c");
                         String pricesplit = pricedata.split("\\.")[0];
@@ -72,12 +78,12 @@ public class BianaceService extends Service {
                         switch (selectItem){
                             case "이상":
                                 if(currentPrice>=limit){
-                                    getNotiData(jsonObject1);
+                                    getNotiData(jsonObject1,intent,socket);
                                 }
                                 break;
                             case "이하":
                                 if(currentPrice<=limit){
-                                    getNotiData(jsonObject1);
+                                    getNotiData(jsonObject1,intent,socket);
                                 }
                                 break;
 
@@ -93,20 +99,7 @@ public class BianaceService extends Service {
 
 
                 }
-                public void getNotiData(JSONObject jsonObject1){
-                    try {
-                        if (notiCount == 5) {
-                            stopSelf();
-                        }
-                        String title = "현재 가격" + jsonObject1.getString("c");
-                        Notification notification = new NotificationCompat.Builder(BianaceService.this, App.CHANNEL_1_ID).setSmallIcon(R.drawable.ic_one).setContentTitle(title)
-                                .setContentText(title).setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_MESSAGE).build();
-                        notificationManager.notify(1, notification);
-                        notiCount++;
-                    }catch (JSONException e){
-                        e.printStackTrace();
-                    }
-                }
+
                 @Override
                 public void onClose(int code, String reason, boolean remote) {
                     Logger.d(reason);
@@ -126,7 +119,32 @@ public class BianaceService extends Service {
 
         return super.onStartCommand(intent, flags, startId);
     }
+    public void getNotiData(JSONObject jsonObject1,Intent intent,WebSocketClient socket){
+        try {
+            if (notiCount >= 9) {
+                this.stopSelf();
+                socket.close();
+            }
+            String title = "현재 가격" + jsonObject1.getString("c");
 
+            try{
+                Notification notification = new NotificationCompat.Builder(this, App.CHANNEL_1_ID).setSmallIcon(R.drawable.ic_one).setContentTitle(title)
+                        .setContentText(title).setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_MESSAGE).build();
+                notificationManager.notify(1, notification);
+
+                notiCount++;
+
+                startForeground(1,notification);
+            }catch(Exception e){
+                e.printStackTrace();
+            }
+
+
+        }catch (JSONException e){
+            e.printStackTrace();
+
+        }
+    }
     @Override
     public IBinder onBind(Intent intent) {
         // TODO: Return the communication channel to the service.

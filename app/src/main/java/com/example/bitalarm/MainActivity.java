@@ -1,38 +1,26 @@
 package com.example.bitalarm;
 
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
+import androidx.core.content.ContextCompat;
 
-import android.app.Notification;
-import android.app.NotificationChannel;
-import android.app.NotificationManager;
+import android.app.ActivityManager;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
-import android.os.Build;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Spinner;
-import android.widget.TextView;
 
 
 import com.orhanobut.logger.Logger;
 
-import io.socket.client.IO;
-import io.socket.client.Socket;
-import io.socket.emitter.Emitter;
-import org.java_websocket.client.WebSocketClient;
-import org.java_websocket.drafts.Draft_6455;
-import org.java_websocket.handshake.ServerHandshake;
 
-import java.net.URI;
-import java.net.URISyntaxException;
+import org.java_websocket.client.WebSocketClient;
 
 public class MainActivity extends AppCompatActivity implements AdapterView.OnItemSelectedListener {
     private WebSocketClient socket;
@@ -41,8 +29,7 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
     private EditText et_price;
     private Spinner spinner;
     private Button btnWatch;
-    private String upDown;
-    TextView text_select_label;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -57,6 +44,15 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
         et_price = findViewById(R.id.main_price);
 
         btnWatch  = findViewById(R.id.btnWatch);
+
+        Boolean a = isMyServiceRunning(BianaceService.class);
+
+        if(a){
+            btnWatch.setText("중지");
+            btnWatch.setBackgroundColor(Color.RED);
+        }
+        Logger.d("asdasdqwdqwd",a);
+
         btnWatch.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View v) {
@@ -69,30 +65,33 @@ public class MainActivity extends AppCompatActivity implements AdapterView.OnIte
                     btnWatch.setText("시작");
                     btnWatch.setBackgroundColor(Color.BLUE);
                 }
-                //startService();
-                /*
-                String title = "aaaaaaa";
-                Notification notification = new NotificationCompat.Builder(MainActivity.this, App.CHANNEL_1_ID).setSmallIcon(R.drawable.ic_one).setContentTitle(title)
-                        .setContentText(title).setPriority(NotificationCompat.PRIORITY_HIGH).setCategory(NotificationCompat.CATEGORY_MESSAGE).build();
-                notificationManager.notify(1,notification);
 
-                 */
             }
         });
 
-        //notificationManager = NotificationManagerCompat.from(this);
 
 
 
 
     }
+    private boolean isMyServiceRunning(Class<?> serviceClass) {
+        ActivityManager manager = (ActivityManager) getSystemService(Context.ACTIVITY_SERVICE);
+        for (ActivityManager.RunningServiceInfo service : manager.getRunningServices(Integer.MAX_VALUE)) {
+            if (serviceClass.getName().equals(service.service.getClassName())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public void startService(View v){
         String price =  et_price.getText().toString();
         String selectItem = (String)spinner.getSelectedItem();
         Intent serviceIntent = new Intent(this,BianaceService.class);
         serviceIntent.putExtra("priceLimit",price);
         serviceIntent.putExtra("selectItem",selectItem);
-        startService(serviceIntent);
+        //startService(serviceIntent);
+        ContextCompat.startForegroundService(this,serviceIntent);
     }
 
     public void stopService(View v){
